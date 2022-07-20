@@ -1,0 +1,116 @@
+﻿@page "/ranking"
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedLocalStorage BrowserStorage
+
+<h4><input placeholder="List Title...." @bind="listName"/> </h4>
+
+<ul>
+    @foreach (var todo in todos)
+    {
+        <li>
+        	<input type="checkbox" @bind="todo.Swap" />
+            <input @bind="todo.Title" />
+            <button @onclick="() => Remove(todo)">Remove</button>
+        </li>
+    }
+    @if (todos.Count > 1)
+    {
+	    <li>
+	    	<button @onclick="TrySwap">Swap</button>
+	    </li>
+	}
+</ul>
+
+
+
+
+<input placeholder="List Item" @bind="newTodo" />
+<button @onclick="AddTodo">Add</button>
+<br><br>
+<button @onclick="Clear">Clear List</button>
+
+@code {
+    private string? listName;
+    private List<TodoItem> todos = new();
+    private string? newTodo;
+
+
+    private async Task Save()
+    {
+        await BrowserStorage.SetAsync("name", listName);
+        await BrowserStorage.SetAsync("todoList", todos);
+    }
+
+    private async Task Clear()
+    {
+        await BrowserStorage.DeleteAsync("name");
+        await BrowserStorage.DeleteAsync("todoList");
+        listName = "";
+        todos = new();
+    }
+
+    private async Task Read()
+    {
+        var nameResult = await BrowserStorage.GetAsync<string>("name");
+        var listResult = await BrowserStorage.GetAsync<List<TodoItem>>("todoList");
+        listName = nameResult.Success ? nameResult.Value : "";
+        todos = listResult.Success ? listResult.Value : new();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(firstRender)
+        {
+            await Read();
+            StateHasChanged();        }
+    }
+
+    private void AddTodo()
+    {
+        if (!string.IsNullOrWhiteSpace(newTodo))
+        {
+            todos.Add(new TodoItem { Title = newTodo });
+            newTodo = string.Empty;
+        }
+        Save();
+    }
+
+    private void Remove(TodoItem todo)
+    {
+    	todos.Remove(todo);
+        Save();
+    }
+
+    private void TrySwap()
+    {
+    	int count = 0;
+    	int swap1 = -1;
+    	int swap2 = -1;
+    	foreach (var todo in todos)
+    	{
+    		if (todo.Swap)
+    		{
+    			if (swap1 == -1)
+    			{
+    				swap1 = count;
+    			}
+    			else if (swap2 == -1)
+    			{
+    				swap2 = count;
+    			}
+    		}
+    		if ((swap1 != -1) & (swap2 != -1))
+    		{
+    			TodoItem todo1 = todos[swap1];
+    			TodoItem todo2 = todos[swap2];
+    			todo1.Swap = false;
+    			todo2.Swap = false;
+    			todos[swap2] = todo1;
+    			todos[swap1] = todo2;
+    			break;
+    		}
+    		count = count + 1;
+    	}
+        Save();
+    }
+}
